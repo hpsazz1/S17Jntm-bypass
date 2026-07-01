@@ -1,16 +1,15 @@
 /*
- * FBrowserVIP.dll — Proxy DLL
- * ============================
- * 原理：替换原始 FBrowserVIP.dll，拦截验证 API 返回成功值
- *      非验证函数通过 #pragma comment(linker, "/export:Foo=Original.Foo") 直接转发
+ * FBrowserVIP.dll Proxy DLL
+ * Replace original FBrowserVIP.dll, intercept license API return values
+ * Non-license functions forwarded via #pragma comment(linker, "/export:Foo=Original.Foo")
  *
- * 编译（VS Developer Command Prompt x86）:
+ * Build (VS Developer Command Prompt x86):
  *   cl /nologo /O2 /GS- /MD /LD dll_proxy.c /link /DEF:dll_proxy.def
  *
- * 使用：
- *   1. 备份原始 FBrowserVIP.dll → FBrowserVIP_original.dll
- *   2. 将编译出的 dll_proxy.dll 重命名为 FBrowserVIP.dll 放入 CEFlib/
- *   3. 启动 mYjJYFSJwydN.exe
+ * Deploy:
+ *   1. backup FBrowserVIP.dll -> FBrowserVIP_original.dll
+ *   2. rename dll_proxy.dll -> FBrowserVIP.dll in CEFlib/
+ *   3. run mYjJYFSJwydN.exe
  */
 
 #include <windows.h>
@@ -138,12 +137,8 @@
 #pragma comment(linker, "/EXPORT:HookEVIPEvent=FBrowserVIP_original.HookEVIPEvent")
 
 
-/* ===================================================
- * Custom implementations for license-check functions
- * =================================================== */
-
 HMODULE g_hOriginal = NULL;
-BOOL g_bDebug = TRUE;  /* set FALSE to suppress debug output */
+BOOL g_bDebug = TRUE;
 
 
 void dbg(const char* fmt, ...)
@@ -176,13 +171,6 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 }
 
 
-/*
- * IsLicenceKey — 返回 TRUE
- *
- * 原始实现: movzx eax, byte ptr [0x103B3E0D] ; ret
- * 在 DLL 中有个全局 flag，默认值为 0x30（'0'），即"未授权"
- * 我们直接返回 1（TRUE）。
- */
 BOOL __stdcall FBroBrowser_IsLicenceKey(void)
 {
     dbg("FBroBrowser_IsLicenceKey -> returning TRUE");
@@ -190,13 +178,6 @@ BOOL __stdcall FBroBrowser_IsLicenceKey(void)
 }
 
 
-/*
- * SetLicenceKey — 不做任何操作（原始实现也是 stub: ret 8）
- *
- * 主程序调用此函数传入用户输入的 Key。
- * 原始 DLL 中这就是个空函数，什么也不做。
- * 真实验证走的是 FBroOnlineLicenseControl_SetKey。
- */
 void __stdcall FBroBrowser_SetLicenceKey(const char* key)
 {
     if (key)
@@ -206,12 +187,6 @@ void __stdcall FBroBrowser_SetLicenceKey(const char* key)
 }
 
 
-/*
- * GetMachineCode — 返回固定机器码
- *
- * 原始实现会读取硬件信息生成机器码。
- * 我们返回一个固定字符串即可。
- */
 const char* __stdcall FBroBrowser_GetMachineCode(void)
 {
     dbg("FBroBrowser_GetMachineCode -> returning fixed code");
@@ -219,25 +194,16 @@ const char* __stdcall FBroBrowser_GetMachineCode(void)
 }
 
 
-/*
- * OnlineLicenseControl_SetKey — 记录 Key，返回成功
- *
- * 原始实现会解析 Key、联网验证、写全局状态。
- * 我们什么都不做，仅记录 Key 到 DebugView。
- */
 int __stdcall FBroOnlineLicenseControl_SetKey(const char* key)
 {
     if (key)
         dbg("FBroOnlineLicenseControl_SetKey(\"%s\") -> accepted", key);
     else
         dbg("FBroOnlineLicenseControl_SetKey(NULL) -> accepted");
-    return 0;  /* 返回 0 表示成功 */
+    return 0;
 }
 
 
-/*
- * GetError — 返回 0（无错误）
- */
 int __stdcall FBroOnlineLicenseControl_GetError(void)
 {
     dbg("FBroOnlineLicenseControl_GetError -> returning 0 (no error)");
@@ -245,47 +211,27 @@ int __stdcall FBroOnlineLicenseControl_GetError(void)
 }
 
 
-/*
- * GetShowLicenseType — 返回"正式版" (2)
- *
- * 可能的返回值：
- *   0 = 试用版
- *   1 = 已过期
- *   2 = 正式版（VIP）
- */
 int __stdcall FBroOnlineLicenseControl_GetShowLicenseType(void)
 {
-    dbg("FBroOnlineLicenseControl_GetShowLicenseType -> returning 2 (正式版)");
+    dbg("FBroOnlineLicenseControl_GetShowLicenseType -> returning 2 (full)");
     return 2;
 }
 
 
-/*
- * GetShowLicenseStartDate — 返回较早的开始日期
- * 返回 2025-01-01 00:00:00 UTC 的时间戳
- */
 long long __stdcall FBroOnlineLicenseControl_GetShowLicenseStartDate(void)
 {
     dbg("FBroOnlineLicenseControl_GetShowLicenseStartDate -> returning 2025-01-01");
-    return 1735689600LL;  /* 2025-01-01 00:00:00 UTC */
+    return 1735689600LL;
 }
 
 
-/*
- * GetShowLicenseEndDate — 返回遥远的未来
- * 返回 2099-12-31 23:59:59 UTC 的时间戳
- */
 long long __stdcall FBroOnlineLicenseControl_GetShowLicenseEndDate(void)
 {
     dbg("FBroOnlineLicenseControl_GetShowLicenseEndDate -> returning 2099-12-31");
-    return 4102444799LL;  /* 2099-12-31 23:59:59 UTC */
+    return 4102444799LL;
 }
 
 
-/*
- * GetShowLicenseDevTool — 启用开发者工具
- * 1 = 启用, 0 = 禁用
- */
 int __stdcall FBroOnlineLicenseControl_GetShowLicenseDevTool(void)
 {
     dbg("FBroOnlineLicenseControl_GetShowLicenseDevTool -> returning 1 (enabled)");
@@ -293,10 +239,6 @@ int __stdcall FBroOnlineLicenseControl_GetShowLicenseDevTool(void)
 }
 
 
-/*
- * GetShowLicenseFunction — 返回全功能列表
- * 位掩码：1=功能A, 2=功能B, 4=功能C, ... FF=全功能
- */
 int __stdcall FBroOnlineLicenseControl_GetShowLicenseFunction(void)
 {
     dbg("FBroOnlineLicenseControl_GetShowLicenseFunction -> returning 0xFFFFFFFF (all)");
@@ -304,11 +246,9 @@ int __stdcall FBroOnlineLicenseControl_GetShowLicenseFunction(void)
 }
 
 
-/*
- * GetShowLicenseSysVersion — 返回系统版本
- */
 int __stdcall FBroOnlineLicenseControl_GetShowLicenseSysVersion(void)
 {
     dbg("FBroOnlineLicenseControl_GetShowLicenseSysVersion -> returning 1");
     return 1;
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
