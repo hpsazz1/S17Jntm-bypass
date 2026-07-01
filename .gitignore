@@ -1,0 +1,23 @@
+# .gitignore — S17Jntm-bypass project
+
+# Ignore large binary files (can be restored from backup/)
+*.exe
+*.dll
+*.pak
+*.dat
+*.bin
+*.so
+*.dmp
+
+# Keep .gitignore, docs, backup folder
+# backup/ is included intentionally
+
+# Ignore CEF runtime (~340MB total)
+CEFlib/
+
+# Ignore temp/editor files
+*.log
+*.tmp
+*.swp
+__pycache__/
+*.pyc
